@@ -1,20 +1,6 @@
 console.log('[qp-widget] Script loading...');
 
 (function () {
-  var bridge      = document.getElementById('qp-bridge');
-  var elLoading   = document.getElementById('qp-loading');
-  var elAuthed    = document.getElementById('qp-authed');
-  var elUnauthed  = document.getElementById('qp-unauthed');
-  var elName      = document.getElementById('qp-name');
-  var elLink      = document.getElementById('qp-portal-link');
-  var elLogoutBtn = document.getElementById('qp-logout-btn');
-  var elModal     = document.getElementById('qp-modal-bg');
-  var elSignin    = document.getElementById('qp-signin-frame');
-  var elToasts    = document.getElementById('qp-toast-container');
-
-  var STORE_ORIGIN = window.location.origin;
-  var PORTAL_URL;   // set once getBackendUrl() is confirmed available, see initWidget()
-
   // -- Minimal toast renderer for messages relayed from the portal --
   var TOAST_COLORS = {
     success: '#16a34a',
@@ -24,7 +10,7 @@ console.log('[qp-widget] Script loading...');
     message: '#374151'
   };
 
-  function showToast(kind, message) {
+  function showToast(elToasts, kind, message) {
     var color = TOAST_COLORS[kind] || TOAST_COLORS.message;
 
     var el = document.createElement('div');
@@ -51,9 +37,23 @@ console.log('[qp-widget] Script loading...');
   }
 
   function initWidget() {
+    var bridge      = document.getElementById('qp-bridge');
+    var elLoading   = document.getElementById('qp-loading');
+    var elAuthed    = document.getElementById('qp-authed');
+    var elUnauthed  = document.getElementById('qp-unauthed');
+    var elName      = document.getElementById('qp-name');
+    var elLink      = document.getElementById('qp-portal-link');
+    var elLogoutBtn = document.getElementById('qp-logout-btn');
+    var elModal     = document.getElementById('qp-modal-bg');
+    var elSignin    = document.getElementById('qp-signin-frame');
+    var elToasts    = document.getElementById('qp-toast-container');
+    var elLoginBtn  = document.getElementById('qp-login-btn');
+    var elModalClose = document.getElementById('qp-modal-close');
+
+    var STORE_ORIGIN = window.location.origin;
     // PORTAL_URL comes from getBackendUrl(), loaded separately (see portal-url.js).
     // Update the preview/production URLs there, not here.
-    PORTAL_URL = getBackendUrl();
+    var PORTAL_URL = getBackendUrl();
 
     bridge.src = PORTAL_URL + '/session-bridge?widget_origin=' + encodeURIComponent(STORE_ORIGIN);
     elLink.href = PORTAL_URL;
@@ -97,8 +97,8 @@ console.log('[qp-widget] Script loading...');
       elSignin.src = '';
     }
 
-    document.getElementById('qp-login-btn').addEventListener('click', openModal);
-    document.getElementById('qp-modal-close').addEventListener('click', closeModal);
+    elLoginBtn.addEventListener('click', openModal);
+    elModalClose.addEventListener('click', closeModal);
     elLogoutBtn.addEventListener('click', requestSignOut);
     elModal.addEventListener('click', function (e) {
       if (e.target === elModal) closeModal();
@@ -112,7 +112,7 @@ console.log('[qp-widget] Script loading...');
       if (data.type === 'PORTAL_SESSION_STATE') {
         applySession(data);
       } else if (data.type === 'PORTAL_TOAST') {
-        showToast(data.toastType, data.message);
+        showToast(elToasts, data.toastType, data.message);
       }
     });
 
@@ -125,22 +125,34 @@ console.log('[qp-widget] Script loading...');
     window.addEventListener('load', function () {
       setTimeout(pingBridge, 800);
     });
+
+    console.log('[qp-widget] Initialized.');
   }
 
-  // -- Wait for getBackendUrl() (loaded from portal-url.js) to exist before starting --
-  function waitForBackendUrl(attemptsLeft) {
-    if (typeof getBackendUrl === 'function') {
+  // -- Wait for both the widget's HTML markup and getBackendUrl() (from
+  // portal-url.js) to be present before doing anything. Handles the script
+  // tag loading/running before either dependency exists on the page yet. --
+  function isReady() {
+    return !!document.getElementById('qp-bridge') && typeof getBackendUrl === 'function';
+  }
+
+  function waitUntilReady(attemptsLeft) {
+    if (isReady()) {
       initWidget();
       return;
     }
     if (attemptsLeft <= 0) {
-      console.error('[qp-widget] getBackendUrl() never became available. Check that portal-url.js loads before this script.');
+      console.error(
+        '[qp-widget] Widget never became ready. Missing: ' +
+        (document.getElementById('qp-bridge') ? '' : '#qp-bridge element on page; ') +
+        (typeof getBackendUrl === 'function' ? '' : 'getBackendUrl() (portal-url.js not loaded yet or failed).')
+      );
       return;
     }
-    setTimeout(function () { waitForBackendUrl(attemptsLeft - 1); }, 50);
+    setTimeout(function () { waitUntilReady(attemptsLeft - 1); }, 50);
   }
 
-  waitForBackendUrl(40); // retries for up to ~2s
+  waitUntilReady(60); // retries for up to ~3s
 
 })();
 
