@@ -1,3 +1,24 @@
+// This file is served to the Webflow storefront via jsDelivr, referenced as:
+//   https://cdn.jsdelivr.net/gh/DiederMaister/quotepro-webflow-embeds@main/session-bridge-widget.js
+//
+// A GitHub Action (.github/workflows/purge-jsdelivr.yml) purges the jsDelivr
+// cache automatically on every push to main, so changes are normally live
+// within seconds. jsDelivr has occasionally been slow (minutes+) to actually
+// propagate a purge for this specific file despite reporting success -
+// if the storefront doesn't seem to reflect a change you just pushed, don't
+// assume the code is wrong before ruling this out.
+//
+// To verify what's ACTUALLY live vs. what's stuck in cache: fetch the @main
+// URL directly (curl/browser) and diff it against this file. To bypass the
+// cache entirely for verification, temporarily point the Webflow <script src>
+// at this exact commit instead of @main:
+//   https://cdn.jsdelivr.net/gh/DiederMaister/quotepro-webflow-embeds@<commit-sha>/session-bridge-widget.js
+// (get <commit-sha> from the latest commit on GitHub) - a commit-pinned URL
+// is a cache key jsDelivr has never served before, so it always fetches
+// fresh. Switch the Webflow embed back to @main once confirmed - a
+// commit-pinned URL never updates again, which defeats the point of this
+// whole setup.
+
 console.log('[qp-widget] Script loading...');
 
 (function () {
