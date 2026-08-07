@@ -47,31 +47,75 @@ console.log('[qp-widget] Script loading...');
     success: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" clip-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"/></svg>',
     warning: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"/></svg>',
     info: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"/></svg>',
-    error: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"/></svg>'
+    error: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"/></svg>',
+    // lucide MessageCircle, matching the icon the portal's own chat toast uses
+    message: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>'
   };
 
-  function showToast(elToasts, kind, message) {
+  // `chat`, when present, is { sender, subject, preview, conversationUrl } -
+  // renders the same rich card the portal's own chat notifications use
+  // (see src/hooks/useMessageNotifications.tsx) instead of a plain one-liner.
+  function showToast(elToasts, kind, message, chat) {
     var el = document.createElement('div');
     el.style.cssText =
-      'pointer-events:auto; display:flex; align-items:center; gap:6px;' +
+      'pointer-events:auto; display:flex; gap:8px;' +
       'padding:16px; background:hsl(210,100%,50%); color:#fff;' +
       'border:1px solid hsl(210,100%,50%); border-radius:8px;' +
       'box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);' +
       'font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;' +
       'font-size:13px; line-height:1.5;' +
-      'opacity:0; transform:translateY(16px); transition:transform 400ms, opacity 400ms;';
+      'opacity:0; transform:translateY(16px); transition:transform 400ms, opacity 400ms;' +
+      (chat ? 'flex-direction:column; align-items:flex-start;' : 'align-items:center;');
 
     var icon = TOAST_ICONS[kind];
-    if (icon) {
-      var iconWrap = document.createElement('span');
-      iconWrap.style.cssText = 'display:flex; flex-shrink:0;';
-      iconWrap.innerHTML = icon;
-      el.appendChild(iconWrap);
-    }
 
-    var text = document.createElement('span');
-    text.textContent = message;
-    el.appendChild(text);
+    if (chat) {
+      var header = document.createElement('div');
+      header.style.cssText = 'display:flex; align-items:center; gap:8px;';
+      if (icon) {
+        var headerIconWrap = document.createElement('span');
+        headerIconWrap.style.cssText = 'display:flex; flex-shrink:0;';
+        headerIconWrap.innerHTML = icon;
+        header.appendChild(headerIconWrap);
+      }
+      var senderEl = document.createElement('span');
+      senderEl.style.cssText = 'font-weight:600; font-size:14px;';
+      senderEl.textContent = chat.sender;
+      header.appendChild(senderEl);
+      el.appendChild(header);
+
+      if (chat.subject) {
+        var subjectEl = document.createElement('div');
+        subjectEl.style.cssText = 'font-size:12px; opacity:0.8;';
+        subjectEl.textContent = 'RE: ' + chat.subject;
+        el.appendChild(subjectEl);
+      }
+
+      var previewEl = document.createElement('div');
+      previewEl.style.cssText = 'font-size:14px; opacity:0.9;';
+      previewEl.textContent = chat.preview;
+      el.appendChild(previewEl);
+
+      if (chat.conversationUrl) {
+        var link = document.createElement('a');
+        link.href = chat.conversationUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = 'View conversation →';
+        link.style.cssText = 'font-size:12px; opacity:0.8; color:#fff; text-decoration:underline; margin-top:4px;';
+        el.appendChild(link);
+      }
+    } else {
+      if (icon) {
+        var iconWrap = document.createElement('span');
+        iconWrap.style.cssText = 'display:flex; flex-shrink:0;';
+        iconWrap.innerHTML = icon;
+        el.appendChild(iconWrap);
+      }
+      var text = document.createElement('span');
+      text.textContent = message;
+      el.appendChild(text);
+    }
 
     elToasts.appendChild(el);
 
@@ -84,7 +128,7 @@ console.log('[qp-widget] Script loading...');
       el.style.opacity = '0';
       el.style.transform = 'translateY(16px)';
       setTimeout(function () { el.remove(); }, 400);
-    }, 4000);
+    }, chat ? 10000 : 4000); // chat toasts carry more to read, matches the portal's own duration
   }
 
   // -- Build and inject all widget markup, return references to what we need --
@@ -215,7 +259,7 @@ console.log('[qp-widget] Script loading...');
         applySession(data);
       } else if (data.type === 'PORTAL_TOAST') {
         console.log('[qp-widget] Received PORTAL_TOAST, rendering:', data.toastType, data.message);
-        showToast(elToasts, data.toastType, data.message);
+        showToast(elToasts, data.toastType, data.message, data.chat);
       }
     });
 
