@@ -8,17 +8,18 @@ editing inline custom code in the Webflow Designer and republishing.
 
 - `portal-url.js` — `getBackendUrl()`, decides staging vs. production portal URL
   based on the current storefront hostname. Load this first.
-- `session-bridge-widget.js` — the session bridge widget logic: hidden bridge
-  iframe, login modal, sign-out, and relayed toast notifications. Depends on
-  `getBackendUrl()` already being defined, and on the HTML markup below
-  already being present in the page.
+- `session-bridge-widget.js` — the session bridge widget: hidden bridge iframe,
+  login modal, sign-out, and relayed toast notifications. Builds and injects
+  all of its own HTML at runtime — no markup needs to live in Webflow. If a
+  `#qp-widget-mount` element is present on the page, the "Log in" / signed-in
+  user UI is injected there; otherwise it's appended to `<body>`. The hidden
+  bridge iframe, login modal, and toast container are always appended to
+  `<body>` since they're fixed-position/hidden and don't need page-layout
+  placement. Depends on `getBackendUrl()` already being defined.
 
 ## Usage in Webflow
 
-In the page/site custom code where the widget currently lives, keep the HTML
-markup (the `#qp-widget`, `#qp-bridge` iframe, login modal, and
-`#qp-toast-container` elements) inline, and replace the two `<script>...</script>`
-blocks with:
+Custom code needed is just two script tags:
 
 ```html
 <script src="https://cdn.jsdelivr.net/gh/DiederMaister/quotepro-webflow-embeds@main/portal-url.js"></script>
@@ -26,6 +27,10 @@ blocks with:
 ```
 
 Order matters — `portal-url.js` must load before `session-bridge-widget.js`.
+
+Optionally, place `<div id="qp-widget-mount"></div>` wherever on the page you
+want the "Log in" / signed-in user UI to appear (e.g. in the nav bar). If
+omitted, it's appended to the end of `<body>` instead.
 
 ## Cache purging
 
