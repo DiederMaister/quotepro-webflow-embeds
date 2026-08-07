@@ -1,3 +1,5 @@
+console.log('[qp-widget] Script loading...');
+
 (function () {
   var bridge      = document.getElementById('qp-bridge');
   var elLoading   = document.getElementById('qp-loading');
@@ -141,3 +143,5 @@
   waitForBackendUrl(40); // retries for up to ~2s
 
 })();
+
+console.log('[qp-widget] Script loaded.');

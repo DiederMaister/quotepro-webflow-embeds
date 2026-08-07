@@ -1,3 +1,5 @@
+console.log('[portal-url] Script loading...');
+
 // Portal URL: preview / production based on current Webflow environment
 // Webflow preview + "test" domains -> staging portal
 // Production domain -> production portal
@@ -12,3 +14,5 @@ function getBackendUrl() {
     ? 'https://quotepro-six.vercel.app'  // portal preview URL
     : 'https://quotepro-six.vercel.app'; // TODO: set production portal URL
 }
+
+console.log('[portal-url] Script loaded. Backend URL for this host:', getBackendUrl());
