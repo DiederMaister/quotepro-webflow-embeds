@@ -1,43 +1,38 @@
 # QuotePro Webflow Embeds
 
-JavaScript served to the TreeSpoke storefront (Webflow) via jsDelivr, so the
-session bridge / login modal widget can be updated by pushing here instead of
-editing inline custom code in the Webflow Designer and republishing.
+Source of truth for the JavaScript embedded on the TreeSpoke storefront
+(Webflow): the session bridge / login modal widget.
+
+**This is not loaded via `<script src>` from GitHub or a CDN.** jsDelivr's
+GitHub mirror proved unreliable for this repo — it repeatedly served stale
+content well after a successful cache purge, with no reliable way to force
+a refresh. Instead, this repo is a versioned copy you paste directly into
+Webflow's custom code whenever you deploy a change.
 
 ## Files
 
-- `portal-url.js` — `getBackendUrl()`, decides staging vs. production portal URL
-  based on the current storefront hostname. Load this first.
-- `session-bridge-widget.js` — the session bridge widget: hidden bridge iframe,
-  login modal, sign-out, and relayed toast notifications. Builds and injects
-  all of its own HTML at runtime — no markup needs to live in Webflow. If a
-  `#qp-widget-mount` element is present on the page, the "Log in" / signed-in
-  user UI is injected there; otherwise it's appended to `<body>`. The hidden
-  bridge iframe, login modal, and toast container are always appended to
-  `<body>` since they're fixed-position/hidden and don't need page-layout
-  placement. Depends on `getBackendUrl()` already being defined.
+- `portal-url.js` — `getBackendUrl()`, decides staging vs. production portal
+  URL based on the current storefront hostname. Paste this in first.
+- `session-bridge-widget.js` — the session bridge widget: hidden bridge
+  iframe, login modal, sign-out, and relayed toast notifications. Builds and
+  injects all of its own HTML at runtime — no markup needs to live in
+  Webflow. If a `#qp-widget-mount` element is present on the page, the
+  "Log in" / signed-in user UI is injected there; otherwise it's appended to
+  `<body>`. Depends on `getBackendUrl()` already being defined, so must be
+  pasted in *after* `portal-url.js`.
 
-## Usage in Webflow
+## Deploying a change
 
-Custom code needed is just two script tags:
-
-```html
-<script src="https://cdn.jsdelivr.net/gh/DiederMaister/quotepro-webflow-embeds@main/portal-url.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/DiederMaister/quotepro-webflow-embeds@main/session-bridge-widget.js"></script>
-```
-
-Order matters — `portal-url.js` must load before `session-bridge-widget.js`.
+1. Edit the file(s) here, commit, push (keeps history/review in git).
+2. Copy the full contents of `portal-url.js`, paste into Webflow's custom
+   code as its own `<script>...</script>` block.
+3. Copy the full contents of `session-bridge-widget.js`, paste as a second
+   `<script>...</script>` block, immediately after the first.
+4. Publish the Webflow site.
 
 Optionally, place `<div id="qp-widget-mount"></div>` wherever on the page you
 want the "Log in" / signed-in user UI to appear (e.g. in the nav bar). If
 omitted, it's appended to the end of `<body>` instead.
-
-## Cache purging
-
-jsDelivr caches `@main`-referenced files for up to ~12h. A GitHub Action
-(`.github/workflows/purge-jsdelivr.yml`) automatically purges the CDN cache
-for both files on every push to `main`, so changes are live within seconds
-instead of waiting on the cache TTL.
 
 ## Note
 
