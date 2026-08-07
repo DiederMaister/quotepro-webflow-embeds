@@ -18,10 +18,38 @@
 // fresh. Switch the Webflow embed back to @main once confirmed - a
 // commit-pinned URL never updates again, which defeats the point of this
 // whole setup.
+//
+// This script builds and injects all of its own HTML (bridge iframe, login
+// modal, toast container, widget UI) - no markup needs to exist in Webflow.
+// If a #qp-widget-mount element is present on the page, the "Log in" /
+// signed-in user UI is injected there; otherwise it's appended to <body>.
+// Everything else (hidden bridge iframe, modal, toast container) is always
+// appended to <body> since they're fixed-position/hidden and don't need a
+// specific spot in the page layout.
 
 console.log('[qp-widget] Script loading...');
 
 (function () {
+  var WIDGET_HTML =
+    '<div id="qp-loading" style="color:#888; font-size:14px;">Checking session…</div>' +
+    '<div id="qp-authed" style="display:none; align-items:center; gap:12px;">' +
+      '<span style="font-size:14px;">👤 <strong id="qp-name"></strong></span>' +
+      '<a id="qp-portal-link" href="" target="_blank" style="font-size:13px; color:#2563eb; text-decoration:none;">Open portal →</a>' +
+      '<button id="qp-logout-btn" style="padding:4px 10px; background:none; color:#6b7280; border:1px solid #d1d5db; border-radius:6px; cursor:pointer; font-size:13px;">Sign out</button>' +
+    '</div>' +
+    '<div id="qp-unauthed" style="display:none;">' +
+      '<button id="qp-login-btn" style="padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px;">Log in to portal</button>' +
+    '</div>';
+
+  var MODAL_HTML =
+    '<div style="background:#fff; border-radius:12px; overflow:hidden; width:min(480px, 95vw); height:min(640px, 90vh); display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
+      '<div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #e5e7eb;">' +
+        '<span style="font-weight:600; font-size:15px;">Log in to portal</span>' +
+        '<button id="qp-modal-close" style="background:none; border:none; cursor:pointer; font-size:20px; color:#6b7280; line-height:1;">✕</button>' +
+      '</div>' +
+      '<iframe id="qp-signin-frame" src="" style="flex:1; border:none; width:100%;" allow="storage-access"></iframe>' +
+    '</div>';
+
   // -- Minimal toast renderer for messages relayed from the portal --
   var TOAST_COLORS = {
     success: '#16a34a',
@@ -57,19 +85,65 @@ console.log('[qp-widget] Script loading...');
     }, 4000);
   }
 
+  // -- Build and inject all widget markup, return references to what we need --
+  function buildDOM() {
+    var mount = document.getElementById('qp-widget-mount');
+    if (!mount) {
+      mount = document.createElement('div');
+      mount.id = 'qp-widget-mount';
+      document.body.appendChild(mount);
+    }
+    mount.style.fontFamily = 'sans-serif';
+    mount.innerHTML = WIDGET_HTML;
+
+    var bridge = document.createElement('iframe');
+    bridge.id = 'qp-bridge';
+    bridge.src = '';
+    bridge.setAttribute('allow', 'storage-access');
+    bridge.style.cssText = 'display:none; width:0; height:0; border:none;';
+    document.body.appendChild(bridge);
+
+    var elModal = document.createElement('div');
+    elModal.id = 'qp-modal-bg';
+    elModal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;';
+    elModal.innerHTML = MODAL_HTML;
+    document.body.appendChild(elModal);
+
+    var elToasts = document.createElement('div');
+    elToasts.id = 'qp-toast-container';
+    elToasts.style.cssText = 'position:fixed; bottom:20px; right:20px; z-index:10000; display:flex; flex-direction:column; gap:8px; font-family:sans-serif; pointer-events:none;';
+    document.body.appendChild(elToasts);
+
+    return {
+      bridge:        bridge,
+      elLoading:     document.getElementById('qp-loading'),
+      elAuthed:      document.getElementById('qp-authed'),
+      elUnauthed:    document.getElementById('qp-unauthed'),
+      elName:        document.getElementById('qp-name'),
+      elLink:        document.getElementById('qp-portal-link'),
+      elLogoutBtn:   document.getElementById('qp-logout-btn'),
+      elModal:       elModal,
+      elSignin:      document.getElementById('qp-signin-frame'),
+      elToasts:      elToasts,
+      elLoginBtn:    document.getElementById('qp-login-btn'),
+      elModalClose:  document.getElementById('qp-modal-close')
+    };
+  }
+
   function initWidget() {
-    var bridge      = document.getElementById('qp-bridge');
-    var elLoading   = document.getElementById('qp-loading');
-    var elAuthed    = document.getElementById('qp-authed');
-    var elUnauthed  = document.getElementById('qp-unauthed');
-    var elName      = document.getElementById('qp-name');
-    var elLink      = document.getElementById('qp-portal-link');
-    var elLogoutBtn = document.getElementById('qp-logout-btn');
-    var elModal     = document.getElementById('qp-modal-bg');
-    var elSignin    = document.getElementById('qp-signin-frame');
-    var elToasts    = document.getElementById('qp-toast-container');
-    var elLoginBtn  = document.getElementById('qp-login-btn');
-    var elModalClose = document.getElementById('qp-modal-close');
+    var els = buildDOM();
+    var bridge      = els.bridge;
+    var elLoading   = els.elLoading;
+    var elAuthed    = els.elAuthed;
+    var elUnauthed  = els.elUnauthed;
+    var elName      = els.elName;
+    var elLink      = els.elLink;
+    var elLogoutBtn = els.elLogoutBtn;
+    var elModal     = els.elModal;
+    var elSignin    = els.elSignin;
+    var elToasts    = els.elToasts;
+    var elLoginBtn  = els.elLoginBtn;
+    var elModalClose = els.elModalClose;
 
     var STORE_ORIGIN = window.location.origin;
     // PORTAL_URL comes from getBackendUrl(), loaded separately (see portal-url.js).
@@ -150,11 +224,10 @@ console.log('[qp-widget] Script loading...');
     console.log('[qp-widget] Initialized.');
   }
 
-  // -- Wait for both the widget's HTML markup and getBackendUrl() (from
-  // portal-url.js) to be present before doing anything. Handles the script
-  // tag loading/running before either dependency exists on the page yet. --
+  // -- Wait for getBackendUrl() (from portal-url.js) and document.body to be
+  // ready before building/injecting anything. --
   function isReady() {
-    return !!document.getElementById('qp-bridge') && typeof getBackendUrl === 'function';
+    return !!document.body && typeof getBackendUrl === 'function';
   }
 
   function waitUntilReady(attemptsLeft) {
@@ -165,7 +238,7 @@ console.log('[qp-widget] Script loading...');
     if (attemptsLeft <= 0) {
       console.error(
         '[qp-widget] Widget never became ready. Missing: ' +
-        (document.getElementById('qp-bridge') ? '' : '#qp-bridge element on page; ') +
+        (document.body ? '' : 'document.body; ') +
         (typeof getBackendUrl === 'function' ? '' : 'getBackendUrl() (portal-url.js not loaded yet or failed).')
       );
       return;
