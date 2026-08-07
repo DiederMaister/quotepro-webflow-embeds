@@ -205,12 +205,16 @@ console.log('[qp-widget] Script loading...');
 
     // -- Listen for messages from the portal (bridge iframe or signin iframe) --
     window.addEventListener('message', function (event) {
-      if (event.origin !== PORTAL_URL) return;
+      if (event.origin !== PORTAL_URL) {
+        console.log('[qp-widget] Ignoring message from unexpected origin', event.origin, 'expected', PORTAL_URL);
+        return;
+      }
       var data = event.data;
       if (!data) return;
       if (data.type === 'PORTAL_SESSION_STATE') {
         applySession(data);
       } else if (data.type === 'PORTAL_TOAST') {
+        console.log('[qp-widget] Received PORTAL_TOAST, rendering:', data.toastType, data.message);
         showToast(elToasts, data.toastType, data.message);
       }
     });
