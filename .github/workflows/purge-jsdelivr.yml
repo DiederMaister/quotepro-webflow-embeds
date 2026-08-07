@@ -1,0 +1,14 @@
+name: Purge jsDelivr cache
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Purge jsDelivr CDN cache for changed files
+        run: |
+          curl -sf "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/portal-url.js" || true
+          curl -sf "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/session-bridge-widget.js" || true
