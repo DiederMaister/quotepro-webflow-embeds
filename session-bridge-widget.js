@@ -37,26 +37,41 @@ console.log('[qp-widget] Script loading...');
       '<iframe id="qp-signin-frame" src="" style="flex:1; border:none; width:100%;" allow="storage-access"></iframe>' +
     '</div>';
 
-  // -- Minimal toast renderer for messages relayed from the portal --
-  var TOAST_COLORS = {
-    success: '#16a34a',
-    error:   '#dc2626',
-    warning: '#d97706',
-    info:    '#2563eb',
-    message: '#374151'
+  // -- Toast renderer matching the portal's actual sonner styling --
+  // Portal always shows toasts with the same accent-blue bg / white text
+  // (bg-accent/text-accent-foreground override, no per-type colors) and
+  // Tailwind shadow-2xl - see src/components/ui/sonner.tsx. Icon SVGs and
+  // base layout (padding, radius, font-size, gap) copied from sonner's own
+  // default styles.css / icon defs so this matches pixel-for-pixel.
+  var TOAST_ICONS = {
+    success: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" clip-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"/></svg>',
+    warning: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"/></svg>',
+    info: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"/></svg>',
+    error: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"/></svg>'
   };
 
   function showToast(elToasts, kind, message) {
-    var color = TOAST_COLORS[kind] || TOAST_COLORS.message;
-
     var el = document.createElement('div');
-    el.textContent = message;
     el.style.cssText =
-      'pointer-events:auto; background:#fff; color:#111827;' +
-      'border-left:4px solid ' + color + ';' +
-      'padding:10px 14px; border-radius:8px; font-size:14px;' +
-      'box-shadow:0 4px 16px rgba(0,0,0,0.15); max-width:320px;' +
-      'opacity:0; transform:translateY(8px); transition:opacity .2s, transform .2s;';
+      'pointer-events:auto; display:flex; align-items:center; gap:6px;' +
+      'padding:16px; background:hsl(210,100%,50%); color:#fff;' +
+      'border:1px solid hsl(210,100%,50%); border-radius:8px;' +
+      'box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);' +
+      'font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;' +
+      'font-size:13px; line-height:1.5;' +
+      'opacity:0; transform:translateY(16px); transition:transform 400ms, opacity 400ms;';
+
+    var icon = TOAST_ICONS[kind];
+    if (icon) {
+      var iconWrap = document.createElement('span');
+      iconWrap.style.cssText = 'display:flex; flex-shrink:0;';
+      iconWrap.innerHTML = icon;
+      el.appendChild(iconWrap);
+    }
+
+    var text = document.createElement('span');
+    text.textContent = message;
+    el.appendChild(text);
 
     elToasts.appendChild(el);
 
@@ -67,8 +82,8 @@ console.log('[qp-widget] Script loading...');
 
     setTimeout(function () {
       el.style.opacity = '0';
-      el.style.transform = 'translateY(8px)';
-      setTimeout(function () { el.remove(); }, 200);
+      el.style.transform = 'translateY(16px)';
+      setTimeout(function () { el.remove(); }, 400);
     }, 4000);
   }
 
@@ -98,7 +113,9 @@ console.log('[qp-widget] Script loading...');
 
     var elToasts = document.createElement('div');
     elToasts.id = 'qp-toast-container';
-    elToasts.style.cssText = 'position:fixed; bottom:20px; right:20px; z-index:10000; display:flex; flex-direction:column; gap:8px; font-family:sans-serif; pointer-events:none;';
+    // Matches sonner's default bottom-right toaster: 32px offset, 14px gap
+    // between stacked toasts, 356px width, very high z-index.
+    elToasts.style.cssText = 'position:fixed; bottom:32px; right:32px; z-index:999999999; display:flex; flex-direction:column; gap:14px; width:356px; max-width:calc(100vw - 64px); pointer-events:none;';
     document.body.appendChild(elToasts);
 
     return {
