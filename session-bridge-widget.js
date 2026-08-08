@@ -222,10 +222,24 @@ console.log('[qp-widget] Script loading...');
         elAuthed.style.display   = 'flex';
         elUnauthed.style.display = 'none';
         elName.textContent = data.user.display_name || data.user.email || 'User';
+        // Opening PORTAL_URL directly in a new tab would land signed-out:
+        // the bridge iframe's session lives in storage partitioned to this
+        // storefront, separate from the portal's own top-level storage.
+        // Pass the tokens we already have via a hash fragment instead - the
+        // portal's /auth/bridge-login page picks them up and calls
+        // setSession() so the new tab opens already signed in.
+        if (data.session_tokens) {
+          elLink.href = PORTAL_URL + '/auth/bridge-login#access_token=' +
+            encodeURIComponent(data.session_tokens.access_token) +
+            '&refresh_token=' + encodeURIComponent(data.session_tokens.refresh_token);
+        } else {
+          elLink.href = PORTAL_URL;
+        }
         closeModal();
       } else {
         elAuthed.style.display   = 'none';
         elUnauthed.style.display = 'block';
+        elLink.href = PORTAL_URL;
       }
     }
 
