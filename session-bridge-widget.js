@@ -241,6 +241,7 @@ console.log('[qp-widget] Script loading...');
 
     // -- Request sign-out from bridge --
     function requestSignOut() {
+      console.log('[qp-widget] Sign-out clicked');
       try {
         bridge.contentWindow.postMessage({ type: 'REQUEST_SIGN_OUT' }, PORTAL_URL);
       } catch (e) {}
@@ -268,10 +269,14 @@ console.log('[qp-widget] Script loading...');
     // sit there blank while they decide. applySession() below opens the
     // tab directly once login actually succeeds instead.
     function openPortal(path) {
+      console.log('[qp-widget] Deep-link clicked for path:', path, '- currently:', currentSessionData ? currentSessionData.status : 'unknown');
       // A previous click's revalidation is still in flight - ignore this
       // one rather than overwriting pendingPortalTab, which would orphan
       // the already-open blank tab (it'd never get navigated or closed).
-      if (pendingPortalTab) return;
+      if (pendingPortalTab) {
+        console.log('[qp-widget] Ignoring - a previous deep-link click is still resolving');
+        return;
+      }
       pendingPortalPath = path;
       if (currentSessionData && currentSessionData.status === 'authenticated') {
         pendingPortalTab = window.open('', '_blank');
