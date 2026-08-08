@@ -268,6 +268,10 @@ console.log('[qp-widget] Script loading...');
     // sit there blank while they decide. applySession() below opens the
     // tab directly once login actually succeeds instead.
     function openPortal(path) {
+      // A previous click's revalidation is still in flight - ignore this
+      // one rather than overwriting pendingPortalTab, which would orphan
+      // the already-open blank tab (it'd never get navigated or closed).
+      if (pendingPortalTab) return;
       pendingPortalPath = path;
       if (currentSessionData && currentSessionData.status === 'authenticated') {
         pendingPortalTab = window.open('', '_blank');
@@ -275,7 +279,6 @@ console.log('[qp-widget] Script loading...');
           bridge.contentWindow.postMessage({ type: 'REQUEST_SESSION_STATE_VALIDATED' }, PORTAL_URL);
         } catch (e) {}
       } else {
-        pendingPortalTab = null;
         openModal();
       }
     }
