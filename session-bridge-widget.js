@@ -1,3 +1,4 @@
+// Last updated: 2026-08-08
 // SOURCE OF TRUTH for the Webflow storefront's session bridge / login widget.
 // Not loaded via <script src> - jsDelivr's GitHub mirror proved unreliable
 // (repeatedly served stale content well after a successful cache purge, with

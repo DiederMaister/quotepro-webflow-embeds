@@ -1,3 +1,4 @@
+// Last updated: 2026-08-08
 console.log('[portal-url] Script loading...');
 
 // Portal URL: preview / production based on current Webflow environment
