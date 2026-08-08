@@ -211,6 +211,10 @@ console.log('[qp-widget] Script loading...');
     // while unauthenticated (or while a revalidation was in flight) - once
     // applySession sees an authenticated state, this gets opened and cleared.
     var pendingPortalPath = null;
+    // Tab opened synchronously by openPortal(), navigated (or closed) once
+    // applySession() knows the outcome - see openPortal() for why this has
+    // to happen synchronously instead of after the async round-trip.
+    var pendingPortalTab = null;
 
     bridge.src = PORTAL_URL + '/session-bridge?widget_origin=' + encodeURIComponent(STORE_ORIGIN);
     elLink.href = PORTAL_URL; // fallback for right-click/middle-click before JS/session loads
@@ -253,8 +257,16 @@ console.log('[qp-widget] Script loading...');
     // click still round-trips through the bridge for a server-checked
     // REQUEST_SESSION_STATE_VALIDATED before actually opening anything;
     // applySession() below is what acts on the (possibly revised) answer.
+    //
+    // window.open() only bypasses the popup blocker when called
+    // synchronously inside a user gesture - by the time that round-trip (or
+    // a modal login) resolves, the browser no longer counts it as one, and
+    // a window.open() there gets silently swallowed. So the tab opens
+    // *now*, blank, and applySession() below navigates or closes it once
+    // the outcome is known.
     function openPortal(path) {
       pendingPortalPath = path;
+      pendingPortalTab = window.open('', '_blank');
       if (currentSessionData && currentSessionData.status === 'authenticated') {
         try {
           bridge.contentWindow.postMessage({ type: 'REQUEST_SESSION_STATE_VALIDATED' }, PORTAL_URL);
@@ -296,7 +308,16 @@ console.log('[qp-widget] Script loading...');
           var path = pendingPortalPath;
           pendingPortalPath = null;
           var url = buildPortalUrl(path);
-          if (url) window.open(url, '_blank');
+          var tab = pendingPortalTab;
+          pendingPortalTab = null;
+          if (tab && !tab.closed) {
+            if (url) tab.location.href = url; else tab.close();
+          } else if (url) {
+            // No tab was opened up front (e.g. this session state arrived
+            // without a pending openPortal() call) - only works if this is
+            // still within a user gesture.
+            window.open(url, '_blank');
+          }
         }
       } else {
         elAuthed.style.display   = 'none';
@@ -305,6 +326,8 @@ console.log('[qp-widget] Script loading...');
         // on the portal) while a deep-link click was pending - prompt for
         // sign-in instead of silently dropping what the customer wanted.
         if (pendingPortalPath) {
+          if (pendingPortalTab && !pendingPortalTab.closed) pendingPortalTab.close();
+          pendingPortalTab = null;
           openModal();
         }
       }
@@ -343,6 +366,7 @@ console.log('[qp-widget] Script loading...');
       var data = event.data;
       if (!data) return;
       if (data.type === 'PORTAL_SESSION_STATE') {
+        console.log('[qp-widget] Received PORTAL_SESSION_STATE:', data.status);
         applySession(data);
       } else if (data.type === 'PORTAL_TOAST') {
         console.log('[qp-widget] Received PORTAL_TOAST, rendering:', data.toastType, data.message);
