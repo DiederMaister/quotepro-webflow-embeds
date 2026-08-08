@@ -197,9 +197,49 @@ console.log('[qp-widget] Script loading...');
     // PORTAL_URL comes from getBackendUrl(), loaded separately (see portal-url.js).
     // Update the preview/production URLs there, not here.
     var PORTAL_URL = getBackendUrl();
+    var currentSessionData = null;
 
     bridge.src = PORTAL_URL + '/session-bridge?widget_origin=' + encodeURIComponent(STORE_ORIGIN);
     elLink.href = PORTAL_URL;
+
+    // Builds a deep link into the portal that arrives already signed in
+    // (via /auth/bridge-login, see applySession below), landing on `path`.
+    // Returns null if there's no active session to carry over.
+    function buildPortalUrl(path) {
+      if (!currentSessionData || currentSessionData.status !== 'authenticated' || !currentSessionData.session_tokens) {
+        return null;
+      }
+      return PORTAL_URL + '/auth/bridge-login#access_token=' +
+        encodeURIComponent(currentSessionData.session_tokens.access_token) +
+        '&refresh_token=' + encodeURIComponent(currentSessionData.session_tokens.refresh_token) +
+        '&next=' + encodeURIComponent(path);
+    }
+
+    // Wires up any button/link elsewhere on the page carrying
+    // data-qp-portal-link, so it opens the portal already signed in -
+    // e.g. <a data-qp-portal-link data-qp-path="/client/my-designs/configurations">
+    // for a "My saved designs" button. No page-specific code needed per
+    // button; just add the attribute in the Webflow Designer. Falls back to
+    // opening the sign-in modal if there's no active session yet.
+    function bindPortalLinkButtons() {
+      var els = document.querySelectorAll('[data-qp-portal-link]');
+      for (var i = 0; i < els.length; i++) {
+        (function (el) {
+          if (el.getAttribute('data-qp-bound')) return;
+          el.setAttribute('data-qp-bound', '1');
+          el.addEventListener('click', function (e) {
+            e.preventDefault();
+            var path = el.getAttribute('data-qp-path') || '/dashboard';
+            var url = buildPortalUrl(path);
+            if (url) {
+              window.open(url, '_blank');
+            } else {
+              openModal();
+            }
+          });
+        })(els[i]);
+      }
+    }
 
     // -- Request current session state from bridge --
     function pingBridge() {
@@ -217,6 +257,7 @@ console.log('[qp-widget] Script loading...');
 
     // -- Update widget UI --
     function applySession(data) {
+      currentSessionData = data;
       elLoading.style.display  = 'none';
       if (data.status === 'authenticated') {
         elAuthed.style.display   = 'flex';
@@ -225,22 +266,17 @@ console.log('[qp-widget] Script loading...');
         // Opening PORTAL_URL directly in a new tab would land signed-out:
         // the bridge iframe's session lives in storage partitioned to this
         // storefront, separate from the portal's own top-level storage.
-        // Pass the tokens we already have via a hash fragment instead - the
-        // portal's /auth/bridge-login page picks them up and calls
-        // setSession() so the new tab opens already signed in.
-        if (data.session_tokens) {
-          elLink.href = PORTAL_URL + '/auth/bridge-login#access_token=' +
-            encodeURIComponent(data.session_tokens.access_token) +
-            '&refresh_token=' + encodeURIComponent(data.session_tokens.refresh_token);
-        } else {
-          elLink.href = PORTAL_URL;
-        }
+        // buildPortalUrl carries the tokens over instead.
+        elLink.href = buildPortalUrl('/dashboard') || PORTAL_URL;
         closeModal();
       } else {
         elAuthed.style.display   = 'none';
         elUnauthed.style.display = 'block';
         elLink.href = PORTAL_URL;
       }
+      // Catches any data-qp-portal-link buttons that appeared since the last bind pass
+      // (e.g. Webflow CMS content that rendered in after the widget initialized).
+      bindPortalLinkButtons();
     }
 
     // -- Login modal --
@@ -260,6 +296,7 @@ console.log('[qp-widget] Script loading...');
     elModal.addEventListener('click', function (e) {
       if (e.target === elModal) closeModal();
     });
+    bindPortalLinkButtons();
 
     // -- Listen for messages from the portal (bridge iframe or signin iframe) --
     window.addEventListener('message', function (event) {

@@ -34,6 +34,20 @@ Optionally, place `<div id="qp-widget-mount"></div>` wherever on the page you
 want the "Log in" / signed-in user UI to appear (e.g. in the nav bar). If
 omitted, it's appended to the end of `<body>` instead.
 
+## Linking any button to the portal, already signed in
+
+Add `data-qp-portal-link` to any button or link anywhere on the site (via a
+Custom Attribute in the Webflow Designer - no code needed) and it opens the
+portal in a new tab, already signed in. If the customer isn't signed in yet,
+it opens the login modal instead.
+
+Add `data-qp-path="/some/portal/path"` to land on a specific page instead of
+the dashboard, e.g. for a "My saved designs" button:
+
+```html
+<a data-qp-portal-link data-qp-path="/client/my-designs/configurations">My saved designs</a>
+```
+
 ## Note
 
 This repo is intentionally public — none of this code contains secrets, and
