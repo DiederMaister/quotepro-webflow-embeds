@@ -341,6 +341,16 @@ console.log('[qp-widget] Script loading...');
           if (pendingPortalTab && !pendingPortalTab.closed) pendingPortalTab.close();
           pendingPortalTab = null;
           openModal();
+        } else {
+          // Make sure no signin iframe is left loaded and running when the
+          // modal isn't actually needed. It's a full page with its own
+          // Supabase client and its own auto-refresh timer, sharing the
+          // same localStorage as the bridge iframe - if one were left
+          // sitting around from an earlier login attempt (hidden but still
+          // executing JS, since CSS display:none doesn't pause an iframe),
+          // it could silently write a session back and undo a sign-out
+          // that just happened in the bridge.
+          elSignin.src = '';
         }
       }
       bindPortalLinkButtons();
