@@ -279,10 +279,24 @@ console.log('[qp-widget] Script loading...');
       }
       pendingPortalPath = path;
       if (currentSessionData && currentSessionData.status === 'authenticated') {
-        pendingPortalTab = window.open('', '_blank');
+        var thisTab = window.open('', '_blank');
+        pendingPortalTab = thisTab;
         try {
           bridge.contentWindow.postMessage({ type: 'REQUEST_SESSION_STATE_VALIDATED' }, PORTAL_URL);
         } catch (e) {}
+        // Safety net: if the bridge's response never arrives (message
+        // lost, bridge iframe reloaded mid-flight, etc.) this would
+        // otherwise leave the widget permanently refusing every future
+        // click, since nothing else clears pendingPortalTab. Self-recover
+        // instead of staying stuck.
+        setTimeout(function () {
+          if (pendingPortalTab === thisTab) {
+            console.log('[qp-widget] Deep-link revalidation timed out, resetting');
+            if (thisTab && !thisTab.closed) thisTab.close();
+            pendingPortalTab = null;
+            pendingPortalPath = null;
+          }
+        }, 8000);
       } else {
         openModal();
       }
