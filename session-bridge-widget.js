@@ -259,19 +259,23 @@ console.log('[qp-widget] Script loading...');
     // applySession() below is what acts on the (possibly revised) answer.
     //
     // window.open() only bypasses the popup blocker when called
-    // synchronously inside a user gesture - by the time that round-trip (or
-    // a modal login) resolves, the browser no longer counts it as one, and
-    // a window.open() there gets silently swallowed. So the tab opens
-    // *now*, blank, and applySession() below navigates or closes it once
-    // the outcome is known.
+    // synchronously inside a user gesture. For an already-authenticated-
+    // looking click, the revalidation round-trip is quick and certain to
+    // finish, so a blank tab opens *now* (still inside the click) and gets
+    // navigated once the outcome is known. For a not-yet-authenticated
+    // click, we don't know if - or when - the visitor will finish the
+    // modal login, so no tab opens yet; popping one immediately would just
+    // sit there blank while they decide. applySession() below opens the
+    // tab directly once login actually succeeds instead.
     function openPortal(path) {
       pendingPortalPath = path;
-      pendingPortalTab = window.open('', '_blank');
       if (currentSessionData && currentSessionData.status === 'authenticated') {
+        pendingPortalTab = window.open('', '_blank');
         try {
           bridge.contentWindow.postMessage({ type: 'REQUEST_SESSION_STATE_VALIDATED' }, PORTAL_URL);
         } catch (e) {}
       } else {
+        pendingPortalTab = null;
         openModal();
       }
     }
