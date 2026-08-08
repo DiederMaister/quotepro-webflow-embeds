@@ -208,13 +208,10 @@ console.log('[qp-widget] Script loading...');
     var PORTAL_URL = getBackendUrl();
     var currentSessionData = null;
     // Path the visitor was trying to reach when openPortal() was called
-    // while unauthenticated (or while a revalidation was in flight) - once
-    // applySession sees an authenticated state, this gets opened and cleared.
+    // while unauthenticated - once applySession sees an authenticated
+    // state (from completing login in the modal), this gets opened and
+    // cleared.
     var pendingPortalPath = null;
-    // Tab opened synchronously by openPortal(), navigated (or closed) once
-    // applySession() knows the outcome - see openPortal() for why this has
-    // to happen synchronously instead of after the async round-trip.
-    var pendingPortalTab = null;
 
     bridge.src = PORTAL_URL + '/session-bridge?widget_origin=' + encodeURIComponent(STORE_ORIGIN);
     elLink.href = PORTAL_URL; // fallback for right-click/middle-click before JS/session loads
@@ -251,53 +248,28 @@ console.log('[qp-widget] Script loading...');
     // this widget's own "Open portal" link and any data-qp-portal-link
     // button elsewhere on the page (see bindPortalLinkButtons below).
     //
-    // Locally-cached session state alone isn't trustworthy here: the
-    // customer may have explicitly signed out in a separate portal tab
-    // since we last heard from the bridge, and we don't want to hand a
-    // now-invalid session over to a new tab. So an authenticated-looking
-    // click still round-trips through the bridge for a server-checked
-    // REQUEST_SESSION_STATE_VALIDATED before actually opening anything;
-    // applySession() below is what acts on the (possibly revised) answer.
-    //
-    // window.open() only bypasses the popup blocker when called
-    // synchronously inside a user gesture. For an already-authenticated-
-    // looking click, the revalidation round-trip is quick and certain to
-    // finish, so a blank tab opens *now* (still inside the click) and gets
-    // navigated once the outcome is known. For a not-yet-authenticated
-    // click, we don't know if - or when - the visitor will finish the
-    // modal login, so no tab opens yet; popping one immediately would just
-    // sit there blank while they decide. applySession() below opens the
-    // tab directly once login actually succeeds instead.
+    // Trusts the locally-cached session state directly and opens
+    // synchronously - no round-trip to the bridge first. An earlier version
+    // added a server-validated REQUEST_SESSION_STATE_VALIDATED check before
+    // opening, to guard against a session ended in a separate portal tab
+    // moments earlier. In practice that check (supabase.auth.getUser())
+    // proved unreliable under this widget's concurrent iframe traffic -
+    // spurious 403s were forcing real, currently-valid sessions to sign out
+    // and back in. The edge case it guarded against is already handled
+    // gracefully anyway: if the session really is stale, /auth/bridge-login
+    // fails to setSession() with it and shows "please sign in again"
+    // instead of silently succeeding.
     function openPortal(path) {
       console.log('[qp-widget] Deep-link clicked for path:', path, '- currently:', currentSessionData ? currentSessionData.status : 'unknown');
-      // A previous click's revalidation is still in flight - ignore this
-      // one rather than overwriting pendingPortalTab, which would orphan
-      // the already-open blank tab (it'd never get navigated or closed).
-      if (pendingPortalTab) {
-        console.log('[qp-widget] Ignoring - a previous deep-link click is still resolving');
-        return;
-      }
-      pendingPortalPath = path;
-      if (currentSessionData && currentSessionData.status === 'authenticated') {
-        var thisTab = window.open('', '_blank');
-        pendingPortalTab = thisTab;
-        try {
-          bridge.contentWindow.postMessage({ type: 'REQUEST_SESSION_STATE_VALIDATED' }, PORTAL_URL);
-        } catch (e) {}
-        // Safety net: if the bridge's response never arrives (message
-        // lost, bridge iframe reloaded mid-flight, etc.) this would
-        // otherwise leave the widget permanently refusing every future
-        // click, since nothing else clears pendingPortalTab. Self-recover
-        // instead of staying stuck.
-        setTimeout(function () {
-          if (pendingPortalTab === thisTab) {
-            console.log('[qp-widget] Deep-link revalidation timed out, resetting');
-            if (thisTab && !thisTab.closed) thisTab.close();
-            pendingPortalTab = null;
-            pendingPortalPath = null;
-          }
-        }, 8000);
+      var url = currentSessionData && currentSessionData.status === 'authenticated' ? buildPortalUrl(path) : null;
+      if (url) {
+        window.open(url, '_blank');
+      } else if (currentSessionData && currentSessionData.status === 'authenticated') {
+        // Authenticated but buildPortalUrl() still returned null (missing
+        // session_tokens) - nothing sensible to open.
+        console.log('[qp-widget] No session tokens available, cannot open portal link');
       } else {
+        pendingPortalPath = path;
         openModal();
       }
     }
@@ -331,29 +303,19 @@ console.log('[qp-widget] Script loading...');
         elName.textContent = data.user.display_name || data.user.email || 'User';
         closeModal();
         if (pendingPortalPath) {
+          // Login just completed via the modal (see the unauthenticated
+          // branch below) - open what the visitor originally clicked for.
+          // Only works if this is still close enough to count as within
+          // the login button's own user gesture; browsers vary on this.
           var path = pendingPortalPath;
           pendingPortalPath = null;
           var url = buildPortalUrl(path);
-          var tab = pendingPortalTab;
-          pendingPortalTab = null;
-          if (tab && !tab.closed) {
-            if (url) tab.location.href = url; else tab.close();
-          } else if (url) {
-            // No tab was opened up front (e.g. this session state arrived
-            // without a pending openPortal() call) - only works if this is
-            // still within a user gesture.
-            window.open(url, '_blank');
-          }
+          if (url) window.open(url, '_blank');
         }
       } else {
         elAuthed.style.display   = 'none';
         elUnauthed.style.display = 'block';
-        // Revalidation found the session no longer valid (e.g. signed out
-        // on the portal) while a deep-link click was pending - prompt for
-        // sign-in instead of silently dropping what the customer wanted.
         if (pendingPortalPath) {
-          if (pendingPortalTab && !pendingPortalTab.closed) pendingPortalTab.close();
-          pendingPortalTab = null;
           openModal();
         } else {
           // Make sure no signin iframe is left loaded and running when the
