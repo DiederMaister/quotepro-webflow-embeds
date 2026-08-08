@@ -204,7 +204,10 @@ console.log('[qp-widget] Script loading...');
 
     // Builds a deep link into the portal that arrives already signed in
     // (via /auth/bridge-login, see applySession below), landing on `path`.
-    // Returns null if there's no active session to carry over.
+    // Returns null if there's no active session to carry over. Buttons
+    // elsewhere on the page that want this (not just this widget's own
+    // "Open portal" link) are handled by the separate portal-deeplinks.js -
+    // see that file for why it's not done here.
     function buildPortalUrl(path) {
       if (!currentSessionData || currentSessionData.status !== 'authenticated' || !currentSessionData.session_tokens) {
         return null;
@@ -213,32 +216,6 @@ console.log('[qp-widget] Script loading...');
         encodeURIComponent(currentSessionData.session_tokens.access_token) +
         '&refresh_token=' + encodeURIComponent(currentSessionData.session_tokens.refresh_token) +
         '&next=' + encodeURIComponent(path);
-    }
-
-    // Wires up any button/link elsewhere on the page carrying
-    // data-qp-portal-link, so it opens the portal already signed in -
-    // e.g. <a data-qp-portal-link data-qp-path="/client/my-designs/configurations">
-    // for a "My saved designs" button. No page-specific code needed per
-    // button; just add the attribute in the Webflow Designer. Falls back to
-    // opening the sign-in modal if there's no active session yet.
-    function bindPortalLinkButtons() {
-      var els = document.querySelectorAll('[data-qp-portal-link]');
-      for (var i = 0; i < els.length; i++) {
-        (function (el) {
-          if (el.getAttribute('data-qp-bound')) return;
-          el.setAttribute('data-qp-bound', '1');
-          el.addEventListener('click', function (e) {
-            e.preventDefault();
-            var path = el.getAttribute('data-qp-path') || '/dashboard';
-            var url = buildPortalUrl(path);
-            if (url) {
-              window.open(url, '_blank');
-            } else {
-              openModal();
-            }
-          });
-        })(els[i]);
-      }
     }
 
     // -- Request current session state from bridge --
@@ -274,9 +251,6 @@ console.log('[qp-widget] Script loading...');
         elUnauthed.style.display = 'block';
         elLink.href = PORTAL_URL;
       }
-      // Catches any data-qp-portal-link buttons that appeared since the last bind pass
-      // (e.g. Webflow CMS content that rendered in after the widget initialized).
-      bindPortalLinkButtons();
     }
 
     // -- Login modal --
@@ -296,7 +270,6 @@ console.log('[qp-widget] Script loading...');
     elModal.addEventListener('click', function (e) {
       if (e.target === elModal) closeModal();
     });
-    bindPortalLinkButtons();
 
     // -- Listen for messages from the portal (bridge iframe or signin iframe) --
     window.addEventListener('message', function (event) {
