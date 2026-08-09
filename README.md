@@ -81,14 +81,20 @@ your cart on the portal picks up the new count too.
 
 Instead of relying on this script's own built-in "Log in" / signed-in UI
 (the one anchored at `#qp-widget-mount`), you can build a fully custom one
-in the Designer: add two divs with id `userWidget_signedIn` and
-`userWidget_signedOut` anywhere on the page. Only the one matching the
-current auth state is ever shown (visibility is reset to your own CSS, not
-forced to a specific display value, so flex/grid/whatever you've set up
-still applies). Nest whatever you want inside each - e.g.
+in the Designer: add a wrapper div with id `userWidget`, and inside it two
+divs with id `userWidget_signedIn` and `userWidget_signedOut`. Only the one
+matching the current auth state is ever shown (visibility is reset to your
+own CSS, not forced to a specific display value, so flex/grid/whatever
+you've set up still applies). Nest whatever you want inside each - e.g.
 `data-qp-portal-link` buttons inside `userWidget_signedIn` - and style it
 however you like; this script never touches their contents, only whether
 each div is shown.
+
+**As soon as `#userWidget` is present anywhere on the page, the built-in
+"Log in" UI is skipped entirely** - nothing gets built or injected for it,
+so there's no separate floating widget competing with your own. The hidden
+bridge iframe, login modal, and toast container are still created either
+way; only the visible "Log in" / signed-in UI is affected.
 
 ## Note
 

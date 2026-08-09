@@ -19,9 +19,12 @@
 // modal, toast container, widget UI) - no markup needs to exist in Webflow.
 // If a #qp-widget-mount element is present on the page, the "Log in" /
 // signed-in user UI is injected there; otherwise it's appended to <body>.
-// Everything else (hidden bridge iframe, modal, toast container) is always
-// appended to <body> since they're fixed-position/hidden and don't need a
-// specific spot in the page layout.
+// If a #userWidget element is present instead, the built-in UI is skipped
+// entirely - no floating widget gets built or injected anywhere - so you
+// can design your own from scratch (see "Building your own custom widget
+// UI" in the README). Everything else (hidden bridge iframe, modal, toast
+// container) is always appended to <body> regardless, since they're
+// fixed-position/hidden and needed either way.
 
 console.log('[qp-widget] Script loading...');
 
@@ -142,14 +145,25 @@ console.log('[qp-widget] Script loading...');
 
   // -- Build and inject all widget markup, return references to what we need --
   function buildDOM() {
-    var mount = document.getElementById('qp-widget-mount');
-    if (!mount) {
-      mount = document.createElement('div');
-      mount.id = 'qp-widget-mount';
-      document.body.appendChild(mount);
+    // If the site has its own custom widget UI (see the README's "Building
+    // your own custom widget UI" section, #userWidget_signedIn/signedOut),
+    // don't also build this script's built-in one - nothing gets created
+    // or appended for it, so there's no randomly-placed floating widget
+    // competing with the self-designed one. Everything below (bridge
+    // iframe, modal, toasts) still gets built either way - it's needed
+    // regardless of which UI is showing.
+    var hasCustomWidget = !!document.getElementById('userWidget');
+
+    if (!hasCustomWidget) {
+      var mount = document.getElementById('qp-widget-mount');
+      if (!mount) {
+        mount = document.createElement('div');
+        mount.id = 'qp-widget-mount';
+        document.body.appendChild(mount);
+      }
+      mount.style.fontFamily = 'sans-serif';
+      mount.innerHTML = WIDGET_HTML;
     }
-    mount.style.fontFamily = 'sans-serif';
-    mount.innerHTML = WIDGET_HTML;
 
     var bridge = document.createElement('iframe');
     bridge.id = 'qp-bridge';
@@ -214,7 +228,10 @@ console.log('[qp-widget] Script loading...');
     var pendingPortalPath = null;
 
     bridge.src = PORTAL_URL + '/session-bridge?widget_origin=' + encodeURIComponent(STORE_ORIGIN);
-    elLink.href = PORTAL_URL; // fallback for right-click/middle-click before JS/session loads
+    // elLink and the other built-in widget elements are null when a custom
+    // #userWidget is present (see buildDOM) - every use of them below is
+    // guarded accordingly.
+    if (elLink) elLink.href = PORTAL_URL; // fallback for right-click/middle-click before JS/session loads
 
     // Builds a deep link into the portal that arrives already signed in
     // (via /auth/bridge-login, see applySession below), landing on `path`.
@@ -327,12 +344,12 @@ console.log('[qp-widget] Script loading...');
 
     function applySession(data) {
       currentSessionData = data;
-      elLoading.style.display  = 'none';
+      if (elLoading) elLoading.style.display = 'none';
       applyUserWidgets(data);
       if (data.status === 'authenticated') {
-        elAuthed.style.display   = 'flex';
-        elUnauthed.style.display = 'none';
-        elName.textContent = data.user.display_name || data.user.email || 'User';
+        if (elAuthed) elAuthed.style.display = 'flex';
+        if (elUnauthed) elUnauthed.style.display = 'none';
+        if (elName) elName.textContent = data.user.display_name || data.user.email || 'User';
         closeModal();
         if (pendingPortalPath) {
           // Login just completed via the modal (see the unauthenticated
@@ -345,8 +362,8 @@ console.log('[qp-widget] Script loading...');
           if (url) window.open(url, '_blank');
         }
       } else {
-        elAuthed.style.display   = 'none';
-        elUnauthed.style.display = 'block';
+        if (elAuthed) elAuthed.style.display = 'none';
+        if (elUnauthed) elUnauthed.style.display = 'block';
         if (pendingPortalPath) {
           openModal();
         } else {
@@ -375,16 +392,18 @@ console.log('[qp-widget] Script loading...');
       elSignin.src = '';
     }
 
-    elLoginBtn.addEventListener('click', openModal);
+    if (elLoginBtn) elLoginBtn.addEventListener('click', openModal);
     elModalClose.addEventListener('click', closeModal);
-    elLogoutBtn.addEventListener('click', requestSignOut);
+    if (elLogoutBtn) elLogoutBtn.addEventListener('click', requestSignOut);
     elModal.addEventListener('click', function (e) {
       if (e.target === elModal) closeModal();
     });
-    elLink.addEventListener('click', function (e) {
-      e.preventDefault();
-      openPortal('/dashboard');
-    });
+    if (elLink) {
+      elLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        openPortal('/dashboard');
+      });
+    }
     bindPortalLinkButtons();
 
     // -- Listen for messages from the portal (bridge iframe or signin iframe) --
