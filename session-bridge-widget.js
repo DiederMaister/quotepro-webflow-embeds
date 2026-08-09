@@ -294,20 +294,35 @@ console.log('[qp-widget] Script loading...');
     }
 
     // -- Update widget UI --
-    // Looks for #userImage / #cartCounter elsewhere on the page (regular
-    // Webflow elements, not built by this script) and keeps them in sync
-    // with the signed-in customer's profile picture and cart item count.
-    // Re-queried on every call rather than cached once, since they may not
-    // exist yet at init time on some pages (CMS-rendered content, etc.).
+    // Looks for #userImage / #cartCounter / #userWidget_signedIn /
+    // #userWidget_signedOut elsewhere on the page (regular Webflow
+    // elements, not built by this script) and keeps them in sync with the
+    // signed-in customer's state. Re-queried on every call rather than
+    // cached once, since they may not exist yet at init time on some pages
+    // (CMS-rendered content, etc.).
+    //
+    // userWidget_signedIn/signedOut let you build a fully custom widget in
+    // the Designer instead of using this script's own built-in UI: nest
+    // whatever you want inside each div (e.g. data-qp-portal-link buttons
+    // inside signedIn), style them however you like, and only the matching
+    // one is ever shown. Visibility is reset to '' rather than forced to a
+    // specific display value, so your own CSS (flex, grid, whatever)
+    // controls how the shown one actually lays out.
     function applyUserWidgets(data) {
       var elUserImage = document.getElementById('userImage');
       var elCartCounter = document.getElementById('cartCounter');
-      if (elUserImage && data.status === 'authenticated' && data.user.profile_picture) {
+      var elSignedIn = document.getElementById('userWidget_signedIn');
+      var elSignedOut = document.getElementById('userWidget_signedOut');
+      var isAuthed = data.status === 'authenticated';
+
+      if (elUserImage && isAuthed && data.user.profile_picture) {
         elUserImage.src = data.user.profile_picture;
       }
       if (elCartCounter) {
-        elCartCounter.textContent = data.status === 'authenticated' ? String(data.cart_item_count || 0) : '0';
+        elCartCounter.textContent = isAuthed ? String(data.cart_item_count || 0) : '0';
       }
+      if (elSignedIn) elSignedIn.style.display = isAuthed ? '' : 'none';
+      if (elSignedOut) elSignedOut.style.display = isAuthed ? 'none' : '';
     }
 
     function applySession(data) {

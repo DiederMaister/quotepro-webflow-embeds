@@ -77,6 +77,19 @@ whenever session state does, including the same tab-focus check that catches
 a portal-side sign-out - so switching back to the storefront after changing
 your cart on the portal picks up the new count too.
 
+## Building your own custom widget UI
+
+Instead of relying on this script's own built-in "Log in" / signed-in UI
+(the one anchored at `#qp-widget-mount`), you can build a fully custom one
+in the Designer: add two divs with id `userWidget_signedIn` and
+`userWidget_signedOut` anywhere on the page. Only the one matching the
+current auth state is ever shown (visibility is reset to your own CSS, not
+forced to a specific display value, so flex/grid/whatever you've set up
+still applies). Nest whatever you want inside each - e.g.
+`data-qp-portal-link` buttons inside `userWidget_signedIn` - and style it
+however you like; this script never touches their contents, only whether
+each div is shown.
+
 ## Note
 
 This repo is intentionally public — none of this code contains secrets, and
