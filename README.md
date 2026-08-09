@@ -54,11 +54,10 @@ deep link — the visitor never ends up authenticated in the portal without
 also being "authenticated" on the storefront (that's the whole reason this
 lives in one site-wide script instead of talking to the portal directly).
 
-If the visitor *looks* signed in locally but actually signed out from a
-separate portal tab since the storefront last checked, clicking re-validates
-with the portal first rather than trusting the stale local state - if that
-comes back signed-out, it prompts sign-in again instead of carrying over a
-dead session.
+If the visitor signed out from a separate portal tab since the storefront
+last checked, the widget catches up automatically the next time the
+storefront tab regains focus (the portal itself pushes the correction) - no
+manual reload needed.
 
 Add `data-qp-path="/some/portal/path"` to land on a specific page instead of
 the dashboard, e.g. for a "My saved designs" button:
@@ -66,6 +65,17 @@ the dashboard, e.g. for a "My saved designs" button:
 ```html
 <a data-qp-portal-link data-qp-path="/client/my-designs/configurations">My saved designs</a>
 ```
+
+## Profile picture and cart count
+
+If elements with id `userImage` (an `<img>`) and/or `cartCounter` (any text
+element) exist anywhere on the page, the widget keeps them in sync with the
+signed-in customer automatically - no attributes needed, just those IDs.
+`userImage`'s `src` gets set to the customer's profile picture; `cartCounter`'s
+text gets set to their portal cart's item count (0 while signed out). Updates
+whenever session state does, including the same tab-focus check that catches
+a portal-side sign-out - so switching back to the storefront after changing
+your cart on the portal picks up the new count too.
 
 ## Note
 

@@ -1,4 +1,4 @@
-// Last updated: 2026-08-08
+// Last updated: 2026-08-09
 // SOURCE OF TRUTH for the Webflow storefront's session bridge / login widget.
 // Not loaded via <script src> - jsDelivr's GitHub mirror proved unreliable
 // (repeatedly served stale content well after a successful cache purge, with
@@ -294,9 +294,26 @@ console.log('[qp-widget] Script loading...');
     }
 
     // -- Update widget UI --
+    // Looks for #userImage / #cartCounter elsewhere on the page (regular
+    // Webflow elements, not built by this script) and keeps them in sync
+    // with the signed-in customer's profile picture and cart item count.
+    // Re-queried on every call rather than cached once, since they may not
+    // exist yet at init time on some pages (CMS-rendered content, etc.).
+    function applyUserWidgets(data) {
+      var elUserImage = document.getElementById('userImage');
+      var elCartCounter = document.getElementById('cartCounter');
+      if (elUserImage && data.status === 'authenticated' && data.user.profile_picture) {
+        elUserImage.src = data.user.profile_picture;
+      }
+      if (elCartCounter) {
+        elCartCounter.textContent = data.status === 'authenticated' ? String(data.cart_item_count || 0) : '0';
+      }
+    }
+
     function applySession(data) {
       currentSessionData = data;
       elLoading.style.display  = 'none';
+      applyUserWidgets(data);
       if (data.status === 'authenticated') {
         elAuthed.style.display   = 'flex';
         elUnauthed.style.display = 'none';
