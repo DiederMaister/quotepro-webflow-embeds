@@ -66,15 +66,23 @@ the dashboard, e.g. for a "My saved designs" button:
 <a data-qp-portal-link data-qp-path="/client/my-designs/configurations">My saved designs</a>
 ```
 
-## A plain "Sign in" button (no portal redirect)
+## A plain "Sign in" / "Sign out" button (no portal redirect)
 
-Add `data-qp-signin` to any button or link and it just opens the login
-modal - unlike `data-qp-portal-link`, it doesn't navigate anywhere after a
-successful sign-in. The modal closes and your own `userWidget_signedIn` UI
-(or the built-in one) takes over from there.
+These work on any element - a `<button>`, `<a>`, `<div>`, whatever's
+convenient in the Designer - since it's just an attribute with a click
+listener, not tied to a specific tag.
+
+Add `data-qp-signin` and it opens the login modal - unlike
+`data-qp-portal-link`, it doesn't navigate anywhere after a successful
+sign-in. The modal closes and your own `userWidget_signedIn` UI (or the
+built-in one) takes over from there.
+
+Add `data-qp-signout` and it signs out directly - the same thing the
+built-in widget's own sign-out button does.
 
 ```html
 <button data-qp-signin>Sign in</button>
+<button data-qp-signout>Sign out</button>
 ```
 
 ## Profile picture and cart count

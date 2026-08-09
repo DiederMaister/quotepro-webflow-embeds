@@ -330,6 +330,24 @@ console.log('[qp-widget] Script loading...');
       }
     }
 
+    // Wires up any button/link elsewhere on the page carrying
+    // data-qp-signout, so it signs out directly - the same thing the
+    // built-in widget's own sign-out button does, just usable from your own
+    // custom userWidget_signedIn UI.
+    function bindSignOutButtons() {
+      var els = document.querySelectorAll('[data-qp-signout]');
+      for (var i = 0; i < els.length; i++) {
+        (function (el) {
+          if (el.getAttribute('data-qp-bound')) return;
+          el.setAttribute('data-qp-bound', '1');
+          el.addEventListener('click', function (e) {
+            e.preventDefault();
+            requestSignOut();
+          });
+        })(els[i]);
+      }
+    }
+
     // -- Update widget UI --
     // Looks for #userImage / #cartCounter / #userWidget_signedIn /
     // #userWidget_signedOut elsewhere on the page (regular Webflow
@@ -400,6 +418,7 @@ console.log('[qp-widget] Script loading...');
       }
       bindPortalLinkButtons();
       bindSignInButtons();
+      bindSignOutButtons();
     }
 
     // -- Login modal --
@@ -427,6 +446,7 @@ console.log('[qp-widget] Script loading...');
     }
     bindPortalLinkButtons();
     bindSignInButtons();
+    bindSignOutButtons();
 
     // -- Listen for messages from the portal (bridge iframe or signin iframe) --
     window.addEventListener('message', function (event) {
