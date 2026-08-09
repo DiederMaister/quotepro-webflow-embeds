@@ -40,13 +40,13 @@ console.log('[qp-widget] Script loading...');
       '<button id="qp-login-btn" style="padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px;">Log in to portal</button>' +
     '</div>';
 
+  // No title bar - the embedded signin page (see AuthForm.tsx) already
+  // shows its own dynamic header text, so a second "Log in to portal" bar
+  // above it was redundant. Close button floats over the iframe instead.
   var MODAL_HTML =
-    '<div style="background:#fff; border-radius:12px; overflow:hidden; width:min(480px, 95vw); height:min(640px, 90vh); display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
-      '<div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #e5e7eb;">' +
-        '<span style="font-weight:600; font-size:15px;">Log in to portal</span>' +
-        '<button id="qp-modal-close" style="background:none; border:none; cursor:pointer; font-size:20px; color:#6b7280; line-height:1;">✕</button>' +
-      '</div>' +
-      '<iframe id="qp-signin-frame" src="" style="flex:1; border:none; width:100%;" allow="storage-access"></iframe>' +
+    '<div style="background:#fff; border-radius:12px; overflow:hidden; width:min(480px, 95vw); height:min(640px, 90vh); position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
+      '<button id="qp-modal-close" style="position:absolute; top:12px; right:12px; z-index:1; background:none; border:none; cursor:pointer; font-size:20px; color:#6b7280; line-height:1;">✕</button>' +
+      '<iframe id="qp-signin-frame" src="" style="width:100%; height:100%; border:none;" allow="storage-access"></iframe>' +
     '</div>';
 
   // -- Toast renderer matching the portal's actual sonner styling --
@@ -221,11 +221,12 @@ console.log('[qp-widget] Script loading...');
     // Update the preview/production URLs there, not here.
     var PORTAL_URL = getBackendUrl();
     var currentSessionData = null;
-    // Path the visitor was trying to reach when openPortal() was called
-    // while unauthenticated - once applySession sees an authenticated
-    // state (from completing login in the modal), this gets opened and
-    // cleared.
+    // Path (and optional signin header message) the visitor was trying to
+    // reach when openPortal() was called while unauthenticated - once
+    // applySession sees an authenticated state (from completing login in
+    // the modal), the path gets opened and both are cleared.
     var pendingPortalPath = null;
+    var pendingPortalMessage = null;
 
     bridge.src = PORTAL_URL + '/session-bridge?widget_origin=' + encodeURIComponent(STORE_ORIGIN);
     // elLink and the other built-in widget elements are null when a custom
@@ -276,7 +277,7 @@ console.log('[qp-widget] Script loading...');
     // gracefully anyway: if the session really is stale, /auth/bridge-login
     // fails to setSession() with it and shows "please sign in again"
     // instead of silently succeeding.
-    function openPortal(path) {
+    function openPortal(path, message) {
       console.log('[qp-widget] Deep-link clicked for path:', path, '- currently:', currentSessionData ? currentSessionData.status : 'unknown');
       var url = currentSessionData && currentSessionData.status === 'authenticated' ? buildPortalUrl(path) : null;
       if (url) {
@@ -287,7 +288,8 @@ console.log('[qp-widget] Script loading...');
         console.log('[qp-widget] No session tokens available, cannot open portal link');
       } else {
         pendingPortalPath = path;
-        openModal();
+        pendingPortalMessage = message;
+        openModal(message);
       }
     }
 
@@ -295,7 +297,9 @@ console.log('[qp-widget] Script loading...');
     // data-qp-portal-link, so it opens the portal already signed in -
     // e.g. <a data-qp-portal-link data-qp-path="/client/my-designs/configurations">
     // for a "My saved designs" button. No page-specific code needed per
-    // button; just add the attribute in the Webflow Designer.
+    // button; just add the attribute in the Webflow Designer. Optional
+    // data-qp-message="Sign in to see your designs" shows as the signin
+    // page's header text if the visitor isn't signed in yet.
     function bindPortalLinkButtons() {
       var els = document.querySelectorAll('[data-qp-portal-link]');
       for (var i = 0; i < els.length; i++) {
@@ -304,7 +308,7 @@ console.log('[qp-widget] Script loading...');
           el.setAttribute('data-qp-bound', '1');
           el.addEventListener('click', function (e) {
             e.preventDefault();
-            openPortal(el.getAttribute('data-qp-path') || '/dashboard');
+            openPortal(el.getAttribute('data-qp-path') || '/dashboard', el.getAttribute('data-qp-message'));
           });
         })(els[i]);
       }
@@ -315,7 +319,7 @@ console.log('[qp-widget] Script loading...');
     // doesn't navigate to the portal after a successful sign-in; the modal
     // simply closes and your own userWidget_signedIn UI takes over. Use
     // this for a plain "Sign in" button that isn't tied to any specific
-    // destination.
+    // destination. Optional data-qp-message, same as data-qp-portal-link.
     function bindSignInButtons() {
       var els = document.querySelectorAll('[data-qp-signin]');
       for (var i = 0; i < els.length; i++) {
@@ -324,7 +328,7 @@ console.log('[qp-widget] Script loading...');
           el.setAttribute('data-qp-bound', '1');
           el.addEventListener('click', function (e) {
             e.preventDefault();
-            openModal();
+            openModal(el.getAttribute('data-qp-message'));
           });
         })(els[i]);
       }
@@ -396,6 +400,7 @@ console.log('[qp-widget] Script loading...');
           // the login button's own user gesture; browsers vary on this.
           var path = pendingPortalPath;
           pendingPortalPath = null;
+          pendingPortalMessage = null;
           var url = buildPortalUrl(path);
           if (url) window.open(url, '_blank');
         }
@@ -403,7 +408,7 @@ console.log('[qp-widget] Script loading...');
         if (elAuthed) elAuthed.style.display = 'none';
         if (elUnauthed) elUnauthed.style.display = 'block';
         if (pendingPortalPath) {
-          openModal();
+          openModal(pendingPortalMessage);
         } else {
           // Make sure no signin iframe is left loaded and running when the
           // modal isn't actually needed. It's a full page with its own
@@ -422,9 +427,14 @@ console.log('[qp-widget] Script loading...');
     }
 
     // -- Login modal --
-    function openModal() {
+    // `message`, when given, replaces the signin page's default "Welcome
+    // back" header with context for why the visitor's being asked to sign
+    // in (e.g. "Sign in to see your designs") - see AuthForm.tsx.
+    function openModal(message) {
       // widget_origin lets the embedded signin page relay toasts back to us
-      elSignin.src = PORTAL_URL + '/signin?embed=1&widget_origin=' + encodeURIComponent(STORE_ORIGIN);
+      var src = PORTAL_URL + '/signin?embed=1&widget_origin=' + encodeURIComponent(STORE_ORIGIN);
+      if (message) src += '&message=' + encodeURIComponent(message);
+      elSignin.src = src;
       elModal.style.display = 'flex';
     }
     function closeModal() {

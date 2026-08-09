@@ -66,6 +66,15 @@ the dashboard, e.g. for a "My saved designs" button:
 <a data-qp-portal-link data-qp-path="/client/my-designs/configurations">My saved designs</a>
 ```
 
+Add `data-qp-message="Sign in to see your designs"` to give the login modal
+a reason tied to what was actually clicked, instead of a generic prompt -
+shown as the signin page's header text if the visitor isn't signed in yet
+(see below):
+
+```html
+<a data-qp-portal-link data-qp-path="/client/my-designs/configurations" data-qp-message="Sign in to see your designs">My saved designs</a>
+```
+
 ## A plain "Sign in" / "Sign out" button (no portal redirect)
 
 These work on any element - a `<button>`, `<a>`, `<div>`, whatever's
@@ -75,7 +84,8 @@ listener, not tied to a specific tag.
 Add `data-qp-signin` and it opens the login modal - unlike
 `data-qp-portal-link`, it doesn't navigate anywhere after a successful
 sign-in. The modal closes and your own `userWidget_signedIn` UI (or the
-built-in one) takes over from there.
+built-in one) takes over from there. Also supports `data-qp-message`, same
+as `data-qp-portal-link` above.
 
 Add `data-qp-signout` and it signs out directly - the same thing the
 built-in widget's own sign-out button does.
