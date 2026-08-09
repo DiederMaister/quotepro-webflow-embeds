@@ -66,6 +66,17 @@ the dashboard, e.g. for a "My saved designs" button:
 <a data-qp-portal-link data-qp-path="/client/my-designs/configurations">My saved designs</a>
 ```
 
+## A plain "Sign in" button (no portal redirect)
+
+Add `data-qp-signin` to any button or link and it just opens the login
+modal - unlike `data-qp-portal-link`, it doesn't navigate anywhere after a
+successful sign-in. The modal closes and your own `userWidget_signedIn` UI
+(or the built-in one) takes over from there.
+
+```html
+<button data-qp-signin>Sign in</button>
+```
+
 ## Profile picture and cart count
 
 If elements with id `userImage` (an `<img>`) and/or `cartCounter` (any text

@@ -310,6 +310,26 @@ console.log('[qp-widget] Script loading...');
       }
     }
 
+    // Wires up any button/link elsewhere on the page carrying data-qp-signin,
+    // so it just opens the login modal - unlike data-qp-portal-link, it
+    // doesn't navigate to the portal after a successful sign-in; the modal
+    // simply closes and your own userWidget_signedIn UI takes over. Use
+    // this for a plain "Sign in" button that isn't tied to any specific
+    // destination.
+    function bindSignInButtons() {
+      var els = document.querySelectorAll('[data-qp-signin]');
+      for (var i = 0; i < els.length; i++) {
+        (function (el) {
+          if (el.getAttribute('data-qp-bound')) return;
+          el.setAttribute('data-qp-bound', '1');
+          el.addEventListener('click', function (e) {
+            e.preventDefault();
+            openModal();
+          });
+        })(els[i]);
+      }
+    }
+
     // -- Update widget UI --
     // Looks for #userImage / #cartCounter / #userWidget_signedIn /
     // #userWidget_signedOut elsewhere on the page (regular Webflow
@@ -379,6 +399,7 @@ console.log('[qp-widget] Script loading...');
         }
       }
       bindPortalLinkButtons();
+      bindSignInButtons();
     }
 
     // -- Login modal --
@@ -405,6 +426,7 @@ console.log('[qp-widget] Script loading...');
       });
     }
     bindPortalLinkButtons();
+    bindSignInButtons();
 
     // -- Listen for messages from the portal (bridge iframe or signin iframe) --
     window.addEventListener('message', function (event) {
