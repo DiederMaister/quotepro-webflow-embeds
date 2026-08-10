@@ -112,12 +112,20 @@ Instead of relying on this script's own built-in "Log in" / signed-in UI
 (the one anchored at `#qp-widget-mount`), you can build a fully custom one
 in the Designer: add a wrapper div with id `userWidget`, and inside it two
 divs with id `userWidget_signedIn` and `userWidget_signedOut`. Only the one
-matching the current auth state is ever shown (visibility is reset to your
-own CSS, not forced to a specific display value, so flex/grid/whatever
-you've set up still applies). Nest whatever you want inside each - e.g.
-`data-qp-portal-link` buttons inside `userWidget_signedIn` - and style it
-however you like; this script never touches their contents, only whether
-each div is shown.
+matching the current auth state is ever shown - the script sets the shown
+one's `display` to `flex` and the hidden one's to `none` (if your layout
+for these isn't flex, ask for the code to be adjusted). Nest whatever you
+want inside each - e.g. `data-qp-portal-link` buttons inside
+`userWidget_signedIn` - and style it however you like; this script never
+touches their contents, only whether each div is shown.
+
+**Recommended: in the Designer, set `userWidget_signedIn` to hidden by
+default** (Display: None). Otherwise both divs are visible at once until
+this script's first update runs - briefly on every page while it loads,
+and potentially longer for a first-time visitor with nothing cached yet
+(see below). Hiding `signedIn` by default means the page always starts
+looking signed-out, which is also the safer default if JS fails to load
+at all.
 
 **As soon as `#userWidget` is present anywhere on the page, the built-in
 "Log in" UI is skipped entirely** - nothing gets built or injected for it,

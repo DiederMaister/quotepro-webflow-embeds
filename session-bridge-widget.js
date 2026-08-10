@@ -381,9 +381,14 @@ console.log('[qp-widget] Script loading...');
     // the Designer instead of using this script's own built-in UI: nest
     // whatever you want inside each div (e.g. data-qp-portal-link buttons
     // inside signedIn), style them however you like, and only the matching
-    // one is ever shown. Visibility is reset to '' rather than forced to a
-    // specific display value, so your own CSS (flex, grid, whatever)
-    // controls how the shown one actually lays out.
+    // one is ever shown. Forced to display:flex/none rather than reset to
+    // '' - if you set one to hidden in the Designer (recommended: hide
+    // signedIn by default, so the page defaults to looking signed-out
+    // before this script has run at all), that's a CSS class rule in the
+    // stylesheet, not an inline style, so clearing an inline override
+    // falls straight back through to that same hidden rule and can never
+    // show it again. If your layout for these isn't flex, change the
+    // 'flex' below to match (block, grid, etc).
     function applyDisplayState(data) {
       var elUserImage = document.getElementById('userImage');
       var elCartCounter = document.getElementById('cartCounter');
@@ -402,8 +407,8 @@ console.log('[qp-widget] Script loading...');
       if (elCartCounter) {
         elCartCounter.textContent = isAuthed ? String(data.cart_item_count || 0) : '0';
       }
-      if (elSignedIn) elSignedIn.style.display = isAuthed ? '' : 'none';
-      if (elSignedOut) elSignedOut.style.display = isAuthed ? 'none' : '';
+      if (elSignedIn) elSignedIn.style.display = isAuthed ? 'flex' : 'none';
+      if (elSignedOut) elSignedOut.style.display = isAuthed ? 'none' : 'flex';
     }
 
     // -- Optimistic display cache (storefront's own localStorage) --
