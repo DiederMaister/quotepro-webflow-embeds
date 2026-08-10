@@ -125,6 +125,23 @@ so there's no separate floating widget competing with your own. The hidden
 bridge iframe, login modal, and toast container are still created either
 way; only the visible "Log in" / signed-in UI is affected.
 
+## Why the UI updates instantly on repeat page loads
+
+Every storefront page load re-authenticates from scratch (a fresh hidden
+iframe boots the portal, which re-checks the session and re-fetches
+profile/cart data) - naturally visible as a brief delay before the login
+UI, `#userImage`, `#cartCounter`, etc. settle into their real state.
+
+To avoid that being visible on every single page, the widget caches the
+last known *display-only* state (signed in or not, name, profile picture,
+cart count - never session tokens) in the storefront's own localStorage,
+and paints it immediately on load, before the bridge iframe has even
+started booting. The real bridge response, once it arrives moments later,
+corrects it if anything's actually changed. Deep-link buttons and the
+"Open portal" link always wait for that real response before doing
+anything - the cache only ever affects what's shown, never what a button
+click is allowed to do.
+
 ## Note
 
 This repo is intentionally public — none of this code contains secrets, and

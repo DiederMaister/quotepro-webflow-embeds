@@ -1,4 +1,4 @@
-// Last updated: 2026-08-09
+// Last updated: 2026-08-10
 // SOURCE OF TRUTH for the Webflow storefront's session bridge / login widget.
 // Not loaded via <script src> - jsDelivr's GitHub mirror proved unreliable
 // (repeatedly served stale content well after a successful cache purge, with
@@ -228,6 +228,14 @@ console.log('[qp-widget] Script loading...');
     var pendingPortalPath = null;
     var pendingPortalMessage = null;
 
+    // Paint the last known display state immediately, before the bridge
+    // iframe has even started loading - see applyDisplayState's own
+    // comment for why this is safe (cosmetic only, never gates an action).
+    // The real bridge response, once it arrives, corrects this if anything
+    // changed (or confirms it if not).
+    var cachedDisplay = readCachedDisplay();
+    if (cachedDisplay) applyDisplayState(cachedDisplay);
+
     bridge.src = PORTAL_URL + '/session-bridge?widget_origin=' + encodeURIComponent(STORE_ORIGIN);
     // elLink and the other built-in widget elements are null when a custom
     // #userWidget is present (see buildDOM) - every use of them below is
@@ -353,6 +361,15 @@ console.log('[qp-widget] Script loading...');
     }
 
     // -- Update widget UI --
+    // Purely cosmetic - never touches currentSessionData, so it's safe to
+    // call with either a real payload from the bridge or a cached,
+    // display-only snapshot from localStorage applied optimistically before
+    // the bridge has even responded (see readCachedDisplay/applySession
+    // below). Deep-link buttons etc. always gate on currentSessionData
+    // directly, which only a real bridge response ever sets - so a stale
+    // cached snapshot can make the UI *look* signed in a moment early, but
+    // can never let an action proceed on an unconfirmed session.
+    //
     // Looks for #userImage / #cartCounter / #userWidget_signedIn /
     // #userWidget_signedOut elsewhere on the page (regular Webflow
     // elements, not built by this script) and keeps them in sync with the
@@ -367,12 +384,17 @@ console.log('[qp-widget] Script loading...');
     // one is ever shown. Visibility is reset to '' rather than forced to a
     // specific display value, so your own CSS (flex, grid, whatever)
     // controls how the shown one actually lays out.
-    function applyUserWidgets(data) {
+    function applyDisplayState(data) {
       var elUserImage = document.getElementById('userImage');
       var elCartCounter = document.getElementById('cartCounter');
       var elSignedIn = document.getElementById('userWidget_signedIn');
       var elSignedOut = document.getElementById('userWidget_signedOut');
       var isAuthed = data.status === 'authenticated';
+
+      if (elLoading) elLoading.style.display = 'none';
+      if (elAuthed) elAuthed.style.display = isAuthed ? 'flex' : 'none';
+      if (elUnauthed) elUnauthed.style.display = isAuthed ? 'none' : 'block';
+      if (elName && isAuthed) elName.textContent = data.user.display_name || data.user.email || 'User';
 
       if (elUserImage && isAuthed && data.user.profile_picture) {
         elUserImage.src = data.user.profile_picture;
@@ -384,14 +406,48 @@ console.log('[qp-widget] Script loading...');
       if (elSignedOut) elSignedOut.style.display = isAuthed ? 'none' : '';
     }
 
+    // -- Optimistic display cache (storefront's own localStorage) --
+    // Carries the last known *display-only* state across full page loads,
+    // so the widget doesn't sit blank/loading on every single storefront
+    // page while a fresh bridge iframe boots and re-authenticates - that
+    // round trip (iframe load + portal JS bundle + several DB queries)
+    // takes long enough to be visible, even though the underlying session
+    // was valid the whole time. Deliberately whitelists only cosmetic
+    // fields - never session_tokens - since this localStorage is on the
+    // storefront's own origin, readable by any other script on the page,
+    // unlike the bridge iframe's own partitioned storage.
+    var DISPLAY_CACHE_KEY = 'qp_session_display';
+    function readCachedDisplay() {
+      try {
+        var raw = localStorage.getItem(DISPLAY_CACHE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    function writeCachedDisplay(data) {
+      try {
+        if (data.status === 'authenticated') {
+          localStorage.setItem(DISPLAY_CACHE_KEY, JSON.stringify({
+            status: 'authenticated',
+            user: {
+              display_name: data.user.display_name,
+              email: data.user.email,
+              profile_picture: data.user.profile_picture
+            },
+            cart_item_count: data.cart_item_count
+          }));
+        } else {
+          localStorage.setItem(DISPLAY_CACHE_KEY, JSON.stringify({ status: 'unauthenticated' }));
+        }
+      } catch (e) {}
+    }
+
     function applySession(data) {
       currentSessionData = data;
-      if (elLoading) elLoading.style.display = 'none';
-      applyUserWidgets(data);
+      applyDisplayState(data);
+      writeCachedDisplay(data);
       if (data.status === 'authenticated') {
-        if (elAuthed) elAuthed.style.display = 'flex';
-        if (elUnauthed) elUnauthed.style.display = 'none';
-        if (elName) elName.textContent = data.user.display_name || data.user.email || 'User';
         closeModal();
         if (pendingPortalPath) {
           // Login just completed via the modal (see the unauthenticated
@@ -405,8 +461,6 @@ console.log('[qp-widget] Script loading...');
           if (url) window.open(url, '_blank');
         }
       } else {
-        if (elAuthed) elAuthed.style.display = 'none';
-        if (elUnauthed) elUnauthed.style.display = 'block';
         if (pendingPortalPath) {
           openModal(pendingPortalMessage);
         } else {
