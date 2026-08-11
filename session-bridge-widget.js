@@ -370,12 +370,12 @@ console.log('[qp-widget] Script loading...');
     // cached snapshot can make the UI *look* signed in a moment early, but
     // can never let an action proceed on an unconfirmed session.
     //
-    // Looks for #userImage / #cartCounter / #userWidget_signedIn /
-    // #userWidget_signedOut elsewhere on the page (regular Webflow
-    // elements, not built by this script) and keeps them in sync with the
-    // signed-in customer's state. Re-queried on every call rather than
-    // cached once, since they may not exist yet at init time on some pages
-    // (CMS-rendered content, etc.).
+    // Looks for #userImage / #userName / #cartCounter / #messageCounter /
+    // #userWidget_signedIn / #userWidget_signedOut elsewhere on the page
+    // (regular Webflow elements, not built by this script) and keeps them
+    // in sync with the signed-in customer's state. Re-queried on every
+    // call rather than cached once, since they may not exist yet at init
+    // time on some pages (CMS-rendered content, etc.).
     //
     // userWidget_signedIn/signedOut let you build a fully custom widget in
     // the Designer instead of using this script's own built-in UI: nest
@@ -389,9 +389,29 @@ console.log('[qp-widget] Script loading...');
     // falls straight back through to that same hidden rule and can never
     // show it again. If your layout for these isn't flex, change the
     // 'flex' below to match (block, grid, etc).
+    //
+    // cartCounter/messageCounter are hidden entirely at 0 (or while signed
+    // out) rather than showing "0" or blank text - an empty badge shape
+    // sitting next to an icon reads as broken UI, and hiding it is the
+    // conventional pattern (cart/notification badges disappearing when
+    // there's nothing to show). Same explicit-display reasoning as above:
+    // if your counter's own layout isn't inline-block, change the value
+    // in applyCounter() below to match.
+    function applyCounter(el, count) {
+      if (!el) return;
+      if (count > 0) {
+        el.textContent = String(count);
+        el.style.display = 'inline-block';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
     function applyDisplayState(data) {
       var elUserImage = document.getElementById('userImage');
+      var elUserName = document.getElementById('userName');
       var elCartCounter = document.getElementById('cartCounter');
+      var elMessageCounter = document.getElementById('messageCounter');
       var elSignedIn = document.getElementById('userWidget_signedIn');
       var elSignedOut = document.getElementById('userWidget_signedOut');
       var isAuthed = data.status === 'authenticated';
@@ -400,13 +420,13 @@ console.log('[qp-widget] Script loading...');
       if (elAuthed) elAuthed.style.display = isAuthed ? 'flex' : 'none';
       if (elUnauthed) elUnauthed.style.display = isAuthed ? 'none' : 'block';
       if (elName && isAuthed) elName.textContent = data.user.display_name || data.user.email || 'User';
+      if (elUserName && isAuthed) elUserName.textContent = data.user.display_name || data.user.email || 'User';
 
       if (elUserImage && isAuthed && data.user.profile_picture) {
         elUserImage.src = data.user.profile_picture;
       }
-      if (elCartCounter) {
-        elCartCounter.textContent = isAuthed ? String(data.cart_item_count || 0) : '0';
-      }
+      applyCounter(elCartCounter, isAuthed ? (data.cart_item_count || 0) : 0);
+      applyCounter(elMessageCounter, isAuthed ? (data.unread_message_count || 0) : 0);
       if (elSignedIn) elSignedIn.style.display = isAuthed ? 'flex' : 'none';
       if (elSignedOut) elSignedOut.style.display = isAuthed ? 'none' : 'flex';
     }
@@ -440,7 +460,8 @@ console.log('[qp-widget] Script loading...');
               email: data.user.email,
               profile_picture: data.user.profile_picture
             },
-            cart_item_count: data.cart_item_count
+            cart_item_count: data.cart_item_count,
+            unread_message_count: data.unread_message_count
           }));
         } else {
           localStorage.setItem(DISPLAY_CACHE_KEY, JSON.stringify({ status: 'unauthenticated' }));

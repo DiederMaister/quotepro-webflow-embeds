@@ -95,16 +95,31 @@ built-in widget's own sign-out button does.
 <button data-qp-signout>Sign out</button>
 ```
 
-## Profile picture and cart count
+## Profile picture, name, cart count, unread messages
 
-If elements with id `userImage` (an `<img>`) and/or `cartCounter` (any text
-element) exist anywhere on the page, the widget keeps them in sync with the
-signed-in customer automatically - no attributes needed, just those IDs.
-`userImage`'s `src` gets set to the customer's profile picture; `cartCounter`'s
-text gets set to their portal cart's item count (0 while signed out). Updates
-whenever session state does, including the same tab-focus check that catches
-a portal-side sign-out - so switching back to the storefront after changing
-your cart on the portal picks up the new count too.
+If elements with these ids exist anywhere on the page, the widget keeps them
+in sync with the signed-in customer automatically - no attributes needed,
+just the IDs:
+
+- `userImage` (an `<img>`) - `src` set to the customer's profile picture.
+- `userName` (any text element) - text set to their display name (falls
+  back to email if no display name is set).
+- `cartCounter` (any text element) - text set to their portal cart's item
+  count.
+- `messageCounter` (any text element) - text set to their unread message
+  count across all their conversations.
+
+`cartCounter` and `messageCounter` are **hidden entirely** (not shown as
+"0" or blank) whenever the count is zero or the visitor is signed out - an
+empty badge shape next to an icon reads as broken UI, so hiding it is the
+more polished, conventional choice. They're forced to `display:inline-block`
+when shown; if your counter's own layout isn't inline-block, ask for the
+code to be adjusted.
+
+All of these update whenever session state does, including the same
+tab-focus check that catches a portal-side sign-out - so switching back to
+the storefront after changing your cart, or after receiving a message, on
+the portal picks up the new values too.
 
 ## Building your own custom widget UI
 
