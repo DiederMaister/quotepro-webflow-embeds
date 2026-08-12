@@ -121,6 +121,55 @@ tab-focus check that catches a portal-side sign-out - so switching back to
 the storefront after changing your cart, or after receiving a message, on
 the portal picks up the new values too.
 
+## Reading auth state from your own code
+
+`window.qpAuth` is always available (set to a signed-out default the
+moment this script loads, before it's even finished checking) with:
+
+```js
+window.qpAuth = {
+  isAuthenticated: false,   // signed in or not
+  confirmed: false,         // see below
+  displayName: null,
+  email: null,
+  cartItemCount: 0,
+  unreadMessageCount: 0
+};
+```
+
+`confirmed` is the one field worth pausing on. On page load, `isAuthenticated`
+can briefly reflect an *optimistic* guess carried over from localStorage (see
+above) before the bridge iframe has actually verified anything - `confirmed`
+is `false` for that guess, and only becomes `true` once a real, server-backed
+answer has come back. For anything read-only (showing a name, a badge count)
+the guess is fine and self-corrects moments later if wrong. For anything that
+*acts* on the result - like deciding whether to save straight to a wishlist
+vs. prompting sign-in - wait for `confirmed: true` first, since acting on a
+stale guess could quietly skip the sign-in step for someone who isn't
+actually signed in (or vice versa).
+
+A `qp:session` event fires on `window` every time this updates, so you can
+wait for a confirmed answer instead of polling:
+
+```js
+function trySaveDesign() {
+  if (window.qpAuth.confirmed) {
+    if (window.qpAuth.isAuthenticated) {
+      saveToWishlist();
+    } else {
+      showSignInOrEmailLinkChoice();
+    }
+    return;
+  }
+  // Not confirmed yet - wait for the real answer.
+  window.addEventListener('qp:session', function handler(e) {
+    window.removeEventListener('qp:session', handler);
+    if (e.detail.isAuthenticated) saveToWishlist();
+    else showSignInOrEmailLinkChoice();
+  });
+}
+```
+
 ## Building your own custom widget UI
 
 Instead of relying on this script's own built-in "Log in" / signed-in UI

@@ -28,6 +28,21 @@
 
 console.log('[qp-widget] Script loading...');
 
+// Global auth state for other scripts on the page to read - e.g. a
+// "save this design" flow that needs to know whether to save straight to
+// the customer's wishlist or prompt them to sign in first. See
+// applyDisplayState() below for what keeps this updated, and "Reading
+// auth state from your own code" in the README for the confirmed vs
+// optimistic distinction and a usage example.
+window.qpAuth = {
+  isAuthenticated: false,
+  confirmed: false,
+  displayName: null,
+  email: null,
+  cartItemCount: 0,
+  unreadMessageCount: 0
+};
+
 (function () {
   var WIDGET_HTML =
     '<div id="qp-loading" style="color:#888; font-size:14px;">Checking session…</div>' +
@@ -234,7 +249,7 @@ console.log('[qp-widget] Script loading...');
     // The real bridge response, once it arrives, corrects this if anything
     // changed (or confirms it if not).
     var cachedDisplay = readCachedDisplay();
-    if (cachedDisplay) applyDisplayState(cachedDisplay);
+    if (cachedDisplay) applyDisplayState(cachedDisplay, false);
 
     bridge.src = PORTAL_URL + '/session-bridge?widget_origin=' + encodeURIComponent(STORE_ORIGIN);
     // elLink and the other built-in widget elements are null when a custom
@@ -407,7 +422,11 @@ console.log('[qp-widget] Script loading...');
       }
     }
 
-    function applyDisplayState(data) {
+    // `confirmed` distinguishes a real bridge response (true) from the
+    // optimistic cache-driven paint on load (false, see readCachedDisplay
+    // below) - reflected in window.qpAuth.confirmed so other scripts can
+    // tell a guess from a verified answer.
+    function applyDisplayState(data, confirmed) {
       var elUserImage = document.getElementById('userImage');
       var elUserName = document.getElementById('userName');
       var elCartCounter = document.getElementById('cartCounter');
@@ -429,6 +448,18 @@ console.log('[qp-widget] Script loading...');
       applyCounter(elMessageCounter, isAuthed ? (data.unread_message_count || 0) : 0);
       if (elSignedIn) elSignedIn.style.display = isAuthed ? 'flex' : 'none';
       if (elSignedOut) elSignedOut.style.display = isAuthed ? 'none' : 'flex';
+
+      window.qpAuth = {
+        isAuthenticated: isAuthed,
+        confirmed: !!confirmed,
+        displayName: isAuthed ? (data.user.display_name || data.user.email || null) : null,
+        email: isAuthed ? (data.user.email || null) : null,
+        cartItemCount: isAuthed ? (data.cart_item_count || 0) : 0,
+        unreadMessageCount: isAuthed ? (data.unread_message_count || 0) : 0
+      };
+      try {
+        window.dispatchEvent(new CustomEvent('qp:session', { detail: window.qpAuth }));
+      } catch (e) {}
     }
 
     // -- Optimistic display cache (storefront's own localStorage) --
@@ -471,7 +502,7 @@ console.log('[qp-widget] Script loading...');
 
     function applySession(data) {
       currentSessionData = data;
-      applyDisplayState(data);
+      applyDisplayState(data, true);
       writeCachedDisplay(data);
       if (data.status === 'authenticated') {
         closeModal();
