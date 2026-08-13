@@ -1,4 +1,4 @@
-<script>
+
 document.addEventListener('DOMContentLoaded', () => {
   const STORAGE_KEY = 'compareMaterials';
 
@@ -44,4 +44,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
-</script>
+
