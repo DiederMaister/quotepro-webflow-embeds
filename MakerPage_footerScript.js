@@ -1,4 +1,3 @@
-<script>
   document.addEventListener("DOMContentLoaded", function () {
     const regionSelector = document.getElementById("regionSelector");
     const regionMessage = document.getElementById("setRegionReminder");
@@ -28,4 +27,3 @@
       });
     }
   });
-</script>
